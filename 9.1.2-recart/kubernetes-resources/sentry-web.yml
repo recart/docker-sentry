@@ -1,0 +1,229 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    name: sentry-web
+  name: sentry-web
+  namespace: services
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 8
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      name: sentry-web
+  strategy:
+    rollingUpdate:
+      maxSurge: 30%
+      maxUnavailable: 30%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        name: sentry-web
+    spec:
+      containers:
+      - args:
+        - run
+        - web
+        env:
+        - name: SLACK_CLIENT_ID
+          valueFrom:
+            configMapKeyRef:
+              key: slack.client-id
+              name: sentry
+        - name: SLACK_CLIENT_SECRET
+          valueFrom:
+            configMapKeyRef:
+              key: slack.client-secret
+              name: sentry
+        - name: SLACK_VERIFICATION_TOKEN
+          valueFrom:
+            configMapKeyRef:
+              key: slack.verification-token
+              name: sentry
+        - name: GITHUB_APP_ID
+          valueFrom:
+            configMapKeyRef:
+              key: github.app-id
+              name: sentry
+        - name: GITHUB_API_SECRET
+          valueFrom:
+            configMapKeyRef:
+              key: github.api-secret
+              name: sentry
+        - name: SENTRY_TESTING
+          valueFrom:
+            configMapKeyRef:
+              key: sentry.testing
+              name: sentry
+        - name: SENTRY_URL
+          valueFrom:
+            configMapKeyRef:
+              key: sentry.url
+              name: sentry
+        - name: SENTRY_SECRET_KEY
+          valueFrom:
+            configMapKeyRef:
+              key: sentry.secret-key
+              name: sentry
+        - name: SENTRY_MEMCACHED_HOST
+          valueFrom:
+            configMapKeyRef:
+              key: memcached.host
+              name: sentry
+        - name: SENTRY_MEMCACHED_PORT
+          valueFrom:
+            configMapKeyRef:
+              key: memcached.port
+              name: sentry
+        - name: SENTRY_REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              key: redis.host
+              name: sentry
+        - name: SENTRY_REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              key: redis.port
+              name: sentry
+        - name: SENTRY_POSTGRES_HOST
+          valueFrom:
+            configMapKeyRef:
+              key: postgres-host
+              name: sentry
+        - name: SENTRY_DB_USER
+          valueFrom:
+            configMapKeyRef:
+              key: db.user
+              name: sentry
+        - name: SENTRY_DB_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              key: db.password
+              name: sentry
+        - name: SENTRY_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              key: db.name
+              name: sentry
+        - name: SENTRY_MAILGUN_API_KEY
+          valueFrom:
+            configMapKeyRef:
+              key: mail.api-key
+              name: sentry
+        - name: SENTRY_SERVER_EMAIL
+          valueFrom:
+            configMapKeyRef:
+              key: mail.server-mail
+              name: sentry
+        - name: SENTRY_EMAIL_HOST
+          valueFrom:
+            configMapKeyRef:
+              key: mail.host
+              name: sentry
+        - name: SENTRY_EMAIL_PORT
+          valueFrom:
+            configMapKeyRef:
+              key: mail.port
+              name: sentry
+        - name: SENTRY_EMAIL_USER
+          valueFrom:
+            configMapKeyRef:
+              key: mail.user
+              name: sentry
+        - name: SENTRY_EMAIL_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              key: mail.password
+              name: sentry
+        - name: SENTRY_EMAIL_USE_TLS
+          valueFrom:
+            configMapKeyRef:
+              key: mail.tls
+              name: sentry
+        - name: SENTRY_FILESTORE_BACKEND
+          valueFrom:
+            configMapKeyRef:
+              key: filestore.backend
+              name: sentry
+        - name: SENTRY_S3_BUCKET_NAME
+          valueFrom:
+            configMapKeyRef:
+              key: filestore.bucket-name
+              name: sentry
+        - name: SENTRY_RABBITMQ_HOST
+          valueFrom:
+            configMapKeyRef:
+              key: rabbitmq.host
+              name: sentry
+        - name: SENTRY_RABBITMQ_VHOST
+          valueFrom:
+            configMapKeyRef:
+              key: rabbitmq.vhost
+              name: sentry
+        - name: SENTRY_RABBITMQ_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              key: rabbitmq.user
+              name: sentry
+        - name: SENTRY_RABBITMQ_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              key: rabbitmq.password
+              name: sentry
+        image: 281674856106.dkr.ecr.us-east-1.amazonaws.com/recart/sentry:9.1.2
+        imagePullPolicy: IfNotPresent
+        name: sentry-web
+        ports:
+        - containerPort: 9000
+          name: http
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 900m
+            memory: 2Gi
+          requests:
+            cpu: 200m
+            memory: 256Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: Default
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 31
+
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sentry-web
+  namespace: services
+spec:
+  maxReplicas: 75
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sentry-web
+  targetCPUUtilizationPercentage: 65
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: sentry-web
+  name: sentry-web
+  namespace: services
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 9000
+  selector:
+    name: sentry-web
+  sessionAffinity: None
+  type: ClusterIP
